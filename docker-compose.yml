@@ -1,0 +1,23 @@
+# Local Postgres for development. After switching to postgres in
+# prisma/schema.prisma, the SQLite file doesn't work anymore. Run:
+#   docker compose up -d
+# then make sure your .env has:
+#   DATABASE_URL="postgresql://postgres:postgres@localhost:5432/pkreferenzen"
+# and run:
+#   npx prisma db push
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pkreferenzen
+    volumes:
+      - pk-pg-data:/var/lib/postgresql/data
+
+volumes:
+  pk-pg-data:
