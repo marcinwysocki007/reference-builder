@@ -14,6 +14,8 @@
 databases:
   - name: pk-referenzen-db
     plan: free  # 90-day trial; upgrade to "basic-256mb" ($7/mo) for prod
+    region: frankfurt  # MUST match the web service region — internal DB
+                       # hostname only resolves within the same region.
     databaseName: pkreferenzen
     user: pkreferenzen
 
