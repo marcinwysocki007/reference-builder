@@ -25,6 +25,9 @@ services:
     region: frankfurt  # closest EU region for low latency to PL/DE users
     branch: main
     buildCommand: npm ci && npm run build
+    # Runs after build, before the new version goes live — DB is reachable
+    # here, build-time it isn't yet.
+    preDeployCommand: npm run render:predeploy
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
