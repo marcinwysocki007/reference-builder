@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/lib/locale-context";
 
 // Triggers a full KI re-run (vision-OCR, metadata, translation, attestation, PII)
 // on an existing document. Useful when the doc was processed with an older
@@ -13,6 +14,7 @@ export function DocumentReprocessButton({
   documentId: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
 
   async function onClick(e: React.MouseEvent) {
@@ -32,7 +34,7 @@ export function DocumentReprocessButton({
     <button
       onClick={onClick}
       disabled={busy}
-      title="Erneut von KI verarbeiten (OCR + Metadaten neu)"
+      title={t("document.reprocess")}
       className="text-xs px-1.5 py-0.5 rounded hover:bg-black/5 transition"
       style={{ color: "var(--muted)" }}
     >

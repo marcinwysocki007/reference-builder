@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/lib/locale-context";
 
 export function RecommendationLetterCard({
   caregiverId,
@@ -16,6 +17,7 @@ export function RecommendationLetterCard({
   hasProfileData: boolean;
 }) {
   const router = useRouter();
+  const t = useT();
   const [text, setText] = useState(initialText ?? "");
   const [updatedAt, setUpdatedAt] = useState<string | null>(initialUpdatedAt);
   const [editing, setEditing] = useState(false);
@@ -31,11 +33,7 @@ export function RecommendationLetterCard({
     );
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
-      setError(
-        body.hint ??
-          body.error ??
-          "KI-Generierung fehlgeschlagen.",
-      );
+      setError(body.hint ?? body.error ?? t("letter.errorGenerate"));
     } else {
       const { caregiver } = await res.json();
       setText(caregiver.recommendationLetterDe ?? "");
@@ -57,7 +55,7 @@ export function RecommendationLetterCard({
       },
     );
     if (!res.ok) {
-      setError("Speichern fehlgeschlagen.");
+      setError(t("letter.errorSave"));
     } else {
       const { caregiver } = await res.json();
       setUpdatedAt(caregiver.recommendationLetterUpdatedAt ?? null);
@@ -76,7 +74,7 @@ export function RecommendationLetterCard({
     );
     if (!res.ok) {
       const b = await res.json().catch(() => ({}));
-      setError(b.message ?? b.error ?? "Export fehlgeschlagen.");
+      setError(b.message ?? b.error ?? t("common.error"));
     } else {
       const { exportJob } = await res.json();
       window.open(`/api/exports/${exportJob.id}/file`, "_blank", "noopener,noreferrer");
@@ -91,15 +89,15 @@ export function RecommendationLetterCard({
     <div className="card space-y-3">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="font-semibold">Empfehlungsschreiben</h2>
+          <h2 className="font-semibold">{t("letter.heading")}</h2>
           <div className="text-xs" style={{ color: "var(--muted)" }}>
             {hasText
               ? updatedAt
-                ? `zuletzt aktualisiert ${new Date(updatedAt).toLocaleString("de-DE")}`
-                : "Entwurf vorhanden"
+                ? `${t("letter.statusReady")} ${new Date(updatedAt).toLocaleString()}`
+                : t("letter.statusDraft")
               : hasProfileData
-              ? "Noch kein Schreiben — KI-Entwurf möglich"
-              : "Noch kein Schreiben — bitte selbst schreiben"}
+                ? t("letter.statusEmptyAi")
+                : t("letter.statusEmptyManual")}
           </div>
         </div>
         <div className="flex gap-2">
@@ -108,9 +106,12 @@ export function RecommendationLetterCard({
               onClick={generate}
               disabled={!!busy}
               className="btn btn-secondary text-xs"
-              title="KI generiert einen neuen Entwurf aus dem Profil"
             >
-              {busy === "gen" ? "KI denkt…" : hasText ? "Neu generieren" : "KI-Entwurf"}
+              {busy === "gen"
+                ? t("letter.generating")
+                : hasText
+                  ? t("letter.regenerate")
+                  : t("letter.generate")}
             </button>
           )}
           {!editing && (
@@ -119,7 +120,7 @@ export function RecommendationLetterCard({
               disabled={!!busy}
               className="btn btn-secondary text-xs"
             >
-              {hasText ? "Bearbeiten" : "Selbst schreiben"}
+              {hasText ? t("common.edit") : t("letter.writeManually")}
             </button>
           )}
           {hasText && !editing && (
@@ -128,7 +129,7 @@ export function RecommendationLetterCard({
               disabled={!!busy}
               className="btn btn-primary text-xs"
             >
-              {busy === "pdf" ? "Erstelle…" : "PDF erstellen"}
+              {busy === "pdf" ? t("sectionPdf.creating") : t("sectionPdf.create")}
             </button>
           )}
         </div>
@@ -141,7 +142,7 @@ export function RecommendationLetterCard({
             onChange={(e) => setText(e.target.value)}
             className="textarea font-mono text-sm"
             rows={18}
-            placeholder="Sehr geehrte Damen und Herren&#10;…"
+            placeholder={t("letter.placeholder")}
           />
           <div className="flex gap-2 justify-end">
             <button
@@ -152,14 +153,14 @@ export function RecommendationLetterCard({
               disabled={!!busy}
               className="btn btn-ghost text-xs"
             >
-              Abbrechen
+              {t("common.cancel")}
             </button>
             <button
               onClick={save}
               disabled={!!busy}
               className="btn btn-primary text-xs"
             >
-              {busy === "save" ? "Speichere…" : "Speichern"}
+              {busy === "save" ? t("common.saving") : t("common.save")}
             </button>
           </div>
         </>

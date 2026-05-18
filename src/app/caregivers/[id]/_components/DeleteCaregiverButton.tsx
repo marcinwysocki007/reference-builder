@@ -2,13 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/lib/locale-context";
 
 export function DeleteCaregiverButton({ id }: { id: string }) {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
 
   async function onDelete() {
-    if (!confirm("Pflegekraft und alle Dokumente unwiderruflich löschen?")) return;
+    if (!confirm(t("caregiverActions.deleteConfirm"))) return;
     setBusy(true);
     await fetch(`/api/caregivers/${id}`, { method: "DELETE" });
     router.push("/");
@@ -16,7 +18,7 @@ export function DeleteCaregiverButton({ id }: { id: string }) {
 
   return (
     <button onClick={onDelete} disabled={busy} className="btn btn-ghost text-sm">
-      {busy ? "Lösche…" : "Löschen"}
+      {busy ? t("caregiverActions.deleting") : t("common.delete")}
     </button>
   );
 }

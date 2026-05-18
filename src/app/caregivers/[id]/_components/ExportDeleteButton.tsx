@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/lib/locale-context";
 
 export function ExportDeleteButton({
   exportId,
@@ -11,12 +12,13 @@ export function ExportDeleteButton({
   filename: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
 
   async function onClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (!confirm(`Erzeugtes PDF „${filename}" löschen?`)) return;
+    if (!confirm(`${t("exports.deleteConfirm")} (${filename})`)) return;
     setBusy(true);
     await fetch(`/api/exports/${exportId}`, { method: "DELETE" });
     setBusy(false);
@@ -27,7 +29,7 @@ export function ExportDeleteButton({
     <button
       onClick={onClick}
       disabled={busy}
-      title="PDF löschen"
+      title={t("common.delete")}
       className="text-xs px-1.5 py-0.5 rounded hover:bg-black/5 transition"
       style={{ color: "var(--muted)" }}
     >

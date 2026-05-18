@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useT } from "@/lib/locale-context";
 
 // Manual 90° clockwise rotation. Useful when the auto-detected orientation
 // in OCR/process was wrong and the user wants to fix it without re-uploading.
@@ -14,6 +15,7 @@ export function DocumentRotateButton({
   mime: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
 
   if (!mime.startsWith("image/")) return null;
@@ -35,7 +37,7 @@ export function DocumentRotateButton({
     <button
       onClick={onClick}
       disabled={busy}
-      title="Bild um 90° drehen (im Uhrzeigersinn)"
+      title={t("document.rotate")}
       className="text-xs px-1.5 py-0.5 rounded hover:bg-black/5 transition"
       style={{ color: "var(--muted)" }}
     >

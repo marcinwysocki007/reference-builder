@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { useRouter } from "next/navigation";
 import type { DocumentType } from "@/lib/types";
+import { useT } from "@/lib/locale-context";
 
 interface FileState {
   name: string;
@@ -34,6 +35,7 @@ export function DropZone({
   icon: string;
 }) {
   const router = useRouter();
+  const t = useT();
   const [files, setFiles] = useState<FileState[]>([]);
 
   const onDrop = useCallback(
@@ -120,9 +122,7 @@ export function DropZone({
         <div className="text-3xl mb-2">{icon}</div>
         <div className="font-semibold mb-1">{label}</div>
         <div className="text-sm" style={{ color: "var(--muted)" }}>
-          {isDragActive
-            ? "Loslassen zum Hochladen…"
-            : "Dateien hierher ziehen oder klicken"}
+          {isDragActive ? t("drop.dragging") : t("drop.hint")}
         </div>
         <div className="text-xs mt-2" style={{ color: "var(--muted)" }}>
           {hint}
@@ -138,7 +138,7 @@ export function DropZone({
               style={{ background: rowBg(f.status) }}
             >
               <span className="truncate flex-1 mr-3">{f.name}</span>
-              <span className="text-xs">{statusLabel(f.status)}</span>
+              <span className="text-xs">{statusLabel(t, f.status)}</span>
             </li>
           ))}
         </ul>
@@ -156,11 +156,11 @@ function rowBg(s: FileState["status"]) {
   }[s];
 }
 
-function statusLabel(s: FileState["status"]) {
-  return {
-    uploading: "Lädt hoch…",
-    processing: "KI verarbeitet…",
-    ready: "✓ Fertig",
-    error: "Fehler",
-  }[s];
+function statusLabel(t: (k: string) => string, s: FileState["status"]) {
+  switch (s) {
+    case "uploading": return t("drop.uploading");
+    case "processing": return t("drop.processing");
+    case "ready": return t("drop.done");
+    case "error": return t("drop.error");
+  }
 }

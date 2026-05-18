@@ -6,6 +6,14 @@ Grußkarten von 24-Stunden-Betreuungskräften. Erzeugt ein einziges PDF mit Deck
 + Agentur-Bestätigung), gemäß den Spec-Vorgaben des Vermittlers (PL-Original und
 DE-Übersetzung in einem Dokument, RODO/DSGVO-konform).
 
+## Deploy auf Render — ein Klick
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/marcinwysocki007/reference-builder)
+
+Render liest `render.yaml`, legt Postgres-DB + Web-Service + 1 GB Disk an. Danach im
+Service-Settings noch `ANTHROPIC_API_KEY` setzen → fertig. Detaillierter Walk-Through
+in [DEPLOY.md](DEPLOY.md).
+
 ## Features
 
 - Pflegekraft-Profile mit Foto, Sprachen, Schwerpunkten, „ehemalig"-Name

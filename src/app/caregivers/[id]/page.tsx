@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { DOCUMENT_TYPE_LABELS_DE, type DocumentType } from "@/lib/types";
+import { type DocumentType } from "@/lib/types";
 import path from "node:path";
 import { DropZone } from "./_components/DropZone";
 import { SectionExportButton } from "./_components/SectionExportButton";
@@ -13,32 +13,13 @@ import { DocumentRotateButton } from "./_components/DocumentRotateButton";
 import { ExportDeleteButton } from "./_components/ExportDeleteButton";
 import { RecommendationLetterCard } from "./_components/RecommendationLetterCard";
 import { fullName } from "@/lib/display";
+import { t, sectionMeta } from "@/lib/i18n";
+import { getServerLocale } from "@/lib/server-locale";
 
 export const dynamic = "force-dynamic";
 
-// EMPFEHLUNG is handled separately (see RecommendationLetterCard) — it's a
-// generated letter, not an uploaded document.
-const ZONES: Array<{
-  type: DocumentType;
-  icon: string;
-  hint: string;
-}> = [
-  {
-    type: "REFERENZ",
-    icon: "📄",
-    hint: "Referenzen von Klienten, Familien oder Auftraggebern · PDF, JPG, PNG",
-  },
-  {
-    type: "ZERTIFIKAT",
-    icon: "🎓",
-    hint: "Zertifikate von Kursen, Schulungen, Sprachzertifikate, Berufsausbildung",
-  },
-  {
-    type: "GRUSSKARTE",
-    icon: "💌",
-    hint: "Weihnachts-, Geburtstags- und sonstige Grußkarten",
-  },
-];
+// EMPFEHLUNG is handled separately (see RecommendationLetterCard).
+const UPLOAD_SECTIONS: DocumentType[] = ["REFERENZ", "ZERTIFIKAT", "GRUSSKARTE"];
 
 export default async function CaregiverDetail({
   params,
@@ -46,6 +27,7 @@ export default async function CaregiverDetail({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+  const locale = await getServerLocale();
   const caregiver = await prisma.caregiver.findUnique({
     where: { id },
     include: {
@@ -95,16 +77,17 @@ export default async function CaregiverDetail({
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {ZONES.map((z) => {
-          const docs = docsByType.get(z.type) ?? [];
+        {UPLOAD_SECTIONS.map((type) => {
+          const docs = docsByType.get(type) ?? [];
+          const meta = sectionMeta(locale, type);
           return (
-            <div key={z.type} className="space-y-2">
+            <div key={type} className="space-y-2">
               <DropZone
                 caregiverId={caregiver.id}
-                type={z.type}
-                label={DOCUMENT_TYPE_LABELS_DE[z.type]}
-                hint={z.hint}
-                icon={z.icon}
+                type={type}
+                label={meta.label}
+                hint={meta.hint}
+                icon={meta.icon}
               />
               {docs.length > 0 && (
                 <>
@@ -133,7 +116,7 @@ export default async function CaregiverDetail({
                   </ul>
                   <SectionExportButton
                     caregiverId={caregiver.id}
-                    type={z.type}
+                    type={type}
                     documentCount={docs.length}
                   />
                 </>
@@ -145,7 +128,7 @@ export default async function CaregiverDetail({
 
       {caregiver.exports.filter((e) => e.outputPath).length > 0 && (
         <div className="card">
-          <div className="font-semibold mb-3">Bisher erzeugte PDFs</div>
+          <div className="font-semibold mb-3">{t(locale, "exports.title")}</div>
           <ul
             className="text-sm rounded-lg overflow-hidden divide-y"
             style={{
@@ -180,7 +163,7 @@ export default async function CaregiverDetail({
                         className="text-xs mt-0.5"
                         style={{ color: "var(--muted)" }}
                       >
-                        {new Date(e.updatedAt).toLocaleString("de-DE")}
+                        {new Date(e.updatedAt).toLocaleString()}
                       </div>
                     </div>
                     <a
@@ -190,7 +173,7 @@ export default async function CaregiverDetail({
                       className="text-xs underline whitespace-nowrap"
                       style={{ color: "var(--brand)" }}
                     >
-                      öffnen
+                      {t(locale, "common.open")}
                     </a>
                     <ExportDeleteButton exportId={e.id} filename={filename} />
                   </li>

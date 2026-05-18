@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { useT } from "@/lib/locale-context";
 
 const ACCEPT = {
   "application/pdf": [".pdf"],
@@ -14,6 +15,7 @@ const ACCEPT = {
 
 export default function NewCaregiverPage() {
   const router = useRouter();
+  const t = useT();
   const [profileFiles, setProfileFiles] = useState<File[]>([]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -39,9 +41,7 @@ export default function NewCaregiverPage() {
     const hasName = firstName.trim().length > 0;
 
     if (!hasProfile && !hasName) {
-      setError(
-        "Bitte entweder eine Profil-Datei hochladen ODER mindestens einen Vornamen eingeben.",
-      );
+      setError(t("newCaregiver.errorNoInput"));
       return;
     }
     setBusy(true);
@@ -49,7 +49,6 @@ export default function NewCaregiverPage() {
     let caregiverId: string | null = null;
 
     if (hasProfile) {
-      // KI extracts name + metadata from uploaded profile files.
       const fd = new FormData();
       for (const f of profileFiles) fd.append("files", f);
       const res = await fetch("/api/caregivers/from-file", {
@@ -60,10 +59,10 @@ export default function NewCaregiverPage() {
         const body = await res.json().catch(() => ({}));
         const msg =
           body.error === "could_not_extract_name"
-            ? "Kein Name im Dokument erkennbar. Bitte Vor-/Nachname unten eintragen."
+            ? t("newCaregiver.errorNoName")
             : body.error === "no_text_extracted"
-            ? "Aus den Dateien konnte kein Text gelesen werden. Bitte Vor-/Nachname eintragen oder schärferes Foto/PDF nutzen."
-            : `Anlegen fehlgeschlagen: ${body.error ?? res.statusText}`;
+            ? t("newCaregiver.errorNoText")
+            : t("newCaregiver.errorGeneric");
         setError(msg);
         setBusy(false);
         return;
@@ -71,7 +70,6 @@ export default function NewCaregiverPage() {
       const { caregiver } = await res.json();
       caregiverId = caregiver.id;
     } else {
-      // Direct create from the manually-typed name.
       const res = await fetch("/api/caregivers", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -81,7 +79,7 @@ export default function NewCaregiverPage() {
         }),
       });
       if (!res.ok) {
-        setError("Pflegekraft konnte nicht angelegt werden.");
+        setError(t("newCaregiver.errorGeneric"));
         setBusy(false);
         return;
       }
@@ -103,17 +101,16 @@ export default function NewCaregiverPage() {
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-2xl font-semibold mb-1">Neue Pflegekraft</h1>
+      <h1 className="text-2xl font-semibold mb-1">
+        {t("newCaregiver.title")}
+      </h1>
       <p className="text-sm mb-6" style={{ color: "var(--muted)" }}>
-        Entweder Profil-Datei hochladen (KI extrahiert Name, Geburtsname, Sprachen, Schwerpunkte)
-        — oder unten direkt Vor- und Nachname eintippen. Foto ist immer optional.
-        Kontaktdaten (Telefon, E-Mail, Adresse) werden grundsätzlich nicht übernommen.
+        {t("newCaregiver.intro")}
       </p>
 
       <div className="card space-y-5">
-        {/* Variant A: drop a profile file → KI extracts everything */}
         <div>
-          <label className="label">Profil-Datei(en) — optional, KI liest aus</label>
+          <label className="label">{t("newCaregiver.profileFiles")}</label>
           <div
             {...getRootProps()}
             className="cursor-pointer rounded-xl p-6 text-center transition"
@@ -125,15 +122,15 @@ export default function NewCaregiverPage() {
             <input {...getInputProps()} />
             <div className="text-3xl mb-2">📋</div>
             <div className="font-semibold mb-1">
-              Profil-PDF oder -Screenshot
+              {t("newCaregiver.profileDropTitle")}
             </div>
             <div className="text-sm" style={{ color: "var(--muted)" }}>
               {isDragActive
-                ? "Loslassen zum Hinzufügen…"
-                : "Dateien hierher ziehen oder klicken"}
+                ? t("newCaregiver.profileDropActive")
+                : t("newCaregiver.profileDropHint")}
             </div>
             <div className="text-xs mt-2" style={{ color: "var(--muted)" }}>
-              PDF, JPG, PNG, WebP, HEIC — mehrere Seiten/Bilder möglich
+              {t("newCaregiver.profileDropFormats")}
             </div>
           </div>
           {profileFiles.length > 0 && (
@@ -152,7 +149,7 @@ export default function NewCaregiverPage() {
                     }
                     className="text-xs opacity-70 hover:opacity-100"
                   >
-                    entfernen
+                    {t("common.remove")}
                   </button>
                 </li>
               ))}
@@ -160,27 +157,34 @@ export default function NewCaregiverPage() {
           )}
         </div>
 
-        {/* Divider */}
-        <div className="flex items-center gap-3 text-xs" style={{ color: "var(--muted)" }}>
-          <div className="flex-1 border-t" style={{ borderColor: "var(--border)" }} />
-          <span>ODER</span>
-          <div className="flex-1 border-t" style={{ borderColor: "var(--border)" }} />
+        <div
+          className="flex items-center gap-3 text-xs"
+          style={{ color: "var(--muted)" }}
+        >
+          <div
+            className="flex-1 border-t"
+            style={{ borderColor: "var(--border)" }}
+          />
+          <span>{t("common.or")}</span>
+          <div
+            className="flex-1 border-t"
+            style={{ borderColor: "var(--border)" }}
+          />
         </div>
 
-        {/* Variant B: type the name directly */}
         <div>
-          <label className="label">Name direkt eintragen — falls kein Profil vorliegt</label>
+          <label className="label">{t("newCaregiver.nameSection")}</label>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
               className="input"
-              placeholder="Vorname *"
+              placeholder={t("newCaregiver.firstNamePlaceholder")}
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
               disabled={profileFiles.length > 0}
             />
             <input
               className="input"
-              placeholder={"Nachname (oder Anfangsbuchstabe, z.B. „W.“)"}
+              placeholder={t("newCaregiver.lastNamePlaceholder")}
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
               disabled={profileFiles.length > 0}
@@ -188,14 +192,13 @@ export default function NewCaregiverPage() {
           </div>
           {profileFiles.length > 0 && (
             <div className="text-xs mt-1" style={{ color: "var(--muted)" }}>
-              (Deaktiviert weil Profil-Datei vorliegt — KI extrahiert den Namen automatisch.)
+              {t("newCaregiver.nameDisabled")}
             </div>
           )}
         </div>
 
-        {/* Photo always optional */}
         <div>
-          <label className="label">Foto (optional)</label>
+          <label className="label">{t("newCaregiver.photoLabel")}</label>
           <input
             type="file"
             accept="image/*"
@@ -217,7 +220,7 @@ export default function NewCaregiverPage() {
             className="btn btn-ghost"
             disabled={busy}
           >
-            Abbrechen
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -230,9 +233,9 @@ export default function NewCaregiverPage() {
           >
             {busy
               ? profileFiles.length > 0
-                ? "Liest Profil…"
-                : "Lege an…"
-              : "Anlegen"}
+                ? t("newCaregiver.readingProfile")
+                : t("newCaregiver.creating")
+              : t("common.create")}
           </button>
         </div>
       </div>

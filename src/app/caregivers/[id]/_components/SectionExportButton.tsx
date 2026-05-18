@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import type { DocumentType } from "@/lib/types";
+import { useT } from "@/lib/locale-context";
 
 export function SectionExportButton({
   caregiverId,
@@ -14,6 +15,7 @@ export function SectionExportButton({
   documentCount: number;
 }) {
   const router = useRouter();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,7 +31,7 @@ export function SectionExportButton({
       );
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || body.error || "Export fehlgeschlagen");
+        throw new Error(body.message || body.error || t("common.error"));
       }
       const { exportJob } = await res.json();
       const url = `/api/exports/${exportJob.id}/file`;
@@ -52,7 +54,7 @@ export function SectionExportButton({
         disabled={busy}
         className="btn btn-primary"
       >
-        {busy ? "Erstelle PDF…" : `PDF erstellen (${documentCount})`}
+        {busy ? t("sectionPdf.creating") : `${t("sectionPdf.create")} (${documentCount})`}
       </button>
       {downloadUrl && (
         <a
@@ -62,7 +64,7 @@ export function SectionExportButton({
           className="underline"
           style={{ color: "var(--brand)" }}
         >
-          PDF öffnen
+          {t("sectionPdf.openPdf")}
         </a>
       )}
       {error && (
