@@ -1,19 +1,57 @@
 import sharp from "sharp";
 
+// Pulls the largest embedded image out of a PDF — used when the PDF is just
+// a phone photo wrapped in PDF (no text layer). Returns the raw embedded
+// image as JPEG so we can re-run the full image pipeline (rotate, enhance,
+// vision OCR, PII boxes) on it.
+export async function extractLargestImageFromPDF(
+  pdfBuf: Buffer,
+): Promise<Buffer | null> {
+  const candidates = await collectPDFImages(pdfBuf, 2);
+  if (candidates.length === 0) return null;
+  const sorted = candidates
+    .filter((c) => c.width >= 200 && c.height >= 200)
+    .sort((a, b) => b.width * b.height - a.width * a.height);
+  return sorted[0]?.jpeg ?? null;
+}
+
 // Pulls embedded images out of a PDF using pdfjs-dist's operator list, then
 // picks the one most likely to be a portrait photo (largest area with sane
 // aspect ratio). Returns a normalized JPEG buffer or null.
 export async function extractPortraitFromPDF(
   pdfBuf: Buffer,
 ): Promise<Buffer | null> {
+  const candidates = await collectPDFImages(pdfBuf, 3);
+  if (candidates.length === 0) return null;
+
+  // Score: prefer larger area, penalize images that are very wide/very tall
+  // (logos, banners), and reject anything tiny.
+  const scored = candidates
+    .filter((c) => c.width >= 80 && c.height >= 80)
+    .map((c) => {
+      const ratio = c.width / c.height;
+      const portraitness = ratio >= 0.5 && ratio <= 1.3 ? 1 : 0.3;
+      return { ...c, score: c.width * c.height * portraitness };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  if (scored.length === 0) return null;
+  return scored[0].jpeg;
+}
+
+type PdfImageCandidate = { width: number; height: number; jpeg: Buffer };
+
+async function collectPDFImages(
+  pdfBuf: Buffer,
+  maxPages: number,
+): Promise<PdfImageCandidate[]> {
   let pdfjs: typeof import("pdfjs-dist/legacy/build/pdf.mjs");
   try {
     pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
   } catch (err) {
     console.error("[pdf-extract-image] pdfjs import failed:", err);
-    return null;
+    return [];
   }
-
   const loadingTask = pdfjs.getDocument({
     data: new Uint8Array(pdfBuf),
     useSystemFonts: true,
@@ -21,21 +59,15 @@ export async function extractPortraitFromPDF(
     isEvalSupported: false,
     disableFontFace: true,
   });
-
   let doc;
   try {
     doc = await loadingTask.promise;
   } catch (err) {
     console.error("[pdf-extract-image] load failed:", err);
-    return null;
+    return [];
   }
-
-  type Candidate = { width: number; height: number; jpeg: Buffer };
-  const candidates: Candidate[] = [];
-
-  // Scan first few pages — profile photos are nearly always on page 1, but be
-  // robust to multi-page profiles.
-  const pagesToScan = Math.min(doc.numPages, 3);
+  const candidates: PdfImageCandidate[] = [];
+  const pagesToScan = Math.min(doc.numPages, maxPages);
   for (let p = 1; p <= pagesToScan; p++) {
     let page;
     try {
@@ -68,22 +100,7 @@ export async function extractPortraitFromPDF(
       candidates.push({ width: img.width, height: img.height, jpeg });
     }
   }
-
-  if (candidates.length === 0) return null;
-
-  // Score: prefer larger area, penalize images that are very wide/very tall
-  // (logos, banners), and reject anything tiny.
-  const scored = candidates
-    .filter((c) => c.width >= 80 && c.height >= 80)
-    .map((c) => {
-      const ratio = c.width / c.height;
-      const portraitness = ratio >= 0.5 && ratio <= 1.3 ? 1 : 0.3;
-      return { ...c, score: c.width * c.height * portraitness };
-    })
-    .sort((a, b) => b.score - a.score);
-
-  if (scored.length === 0) return null;
-  return scored[0].jpeg;
+  return candidates;
 }
 
 // pdfjs page.objs.get takes a callback in legacy build. Wrap as a Promise.

@@ -14,6 +14,8 @@ import {
 import { readFile, writeFile } from "@/lib/storage";
 import { recognizeWordBoxes } from "@/lib/ocr";
 import { locatePIIBoxesViaOCR } from "@/lib/pii-locate";
+import { extractLargestImageFromPDF } from "@/lib/pdf-extract-image";
+import { enhanceDocument } from "@/lib/image";
 
 interface RouteCtx { params: Promise<{ id: string }> }
 
@@ -39,6 +41,41 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
 
   try {
     let ocrText = doc.ocrText ?? "";
+
+    // Image-PDFs (phone photo wrapped in a PDF, no text layer) need the same
+    // rotate + enhance + vision pipeline as plain image uploads — otherwise
+    // they end up in the export sideways and faint. Convert to JPEG once,
+    // update the doc record, and the rest of the pipeline treats it as an
+    // image from here on.
+    if (doc.originalMime === "application/pdf" && (force || !ocrText)) {
+      try {
+        const buf = await readFile(doc.originalPath);
+        const probeText = await extractText({
+          path: doc.originalPath,
+          mime: doc.originalMime,
+        });
+        const trimmedLen = probeText.replace(/\s+/g, "").length;
+        if (trimmedLen < 80) {
+          const extracted = await extractLargestImageFromPDF(buf);
+          if (extracted) {
+            const enhanced = await enhanceDocument(extracted);
+            const newPath = doc.originalPath.replace(/\.pdf$/i, ".jpg");
+            await writeFile(newPath, enhanced);
+            await prisma.document.update({
+              where: { id },
+              data: {
+                originalPath: newPath,
+                originalMime: "image/jpeg",
+              },
+            });
+            doc.originalPath = newPath;
+            doc.originalMime = "image/jpeg";
+          }
+        }
+      } catch (err) {
+        console.error("[process] image-pdf conversion failed:", err);
+      }
+    }
 
     if (steps.includes("ocr") && (!ocrText || force)) {
       if (doc.originalMime.startsWith("image/")) {

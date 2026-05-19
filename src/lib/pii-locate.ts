@@ -47,19 +47,15 @@ export function locatePIIBoxesViaOCR(
     }
 
     if (matches.size === 0) {
-      // OCR couldn't find any words for this PII — fall back to a
-      // full-width horizontal strip at Claude's Y. Claude's Y estimate is
-      // usually within ±5–10 %, so widening Y a bit and stretching X to
-      // the full image width ensures the line containing the PII is
-      // covered even if the exact column was off. We lose surrounding
-      // text on the same line but DSGVO trumps aesthetics.
-      const yPad = Math.max(0.015, claude.height * 0.5);
+      // OCR couldn't anchor this PII — keep Claude's own box (with a small
+      // pad), don't expand to a full-width strip. Previously we strip-masked
+      // entire lines which produced "almost everything blacked out" on
+      // documents where OCR was noisy. Better to occasionally miss a token
+      // than redact half the page.
       out.push({
         ...claude,
-        x: 0,
-        width: 1,
-        y: Math.max(0, claude.y - yPad),
-        height: Math.min(1, claude.height + 2 * yPad),
+        x: Math.max(0, claude.x - 0.005),
+        width: Math.min(1, claude.width + 0.01),
       });
       continue;
     }
@@ -93,14 +89,20 @@ function tokensForLookup(box: PIIBox): string[] {
   });
 }
 
-// A tesseract word "matches" a token if either fully contains the other,
-// or shares a strong substring (≥4 chars). Avoids matching tiny fragments.
+// A tesseract word "matches" a token if they are equal, or if one starts
+// with the other (prefix match — handles OCR truncation like "Filak" vs
+// "Filakk" or "Filak,"). Substring-containment matching was too greedy:
+// a 4-char surname like "Anna" would match "Annahme", "Anneliese", etc.
 function wordMatches(wordNorm: string, token: string): boolean {
   if (!wordNorm || !token) return false;
   if (wordNorm === token) return true;
-  if (token.length >= 4 && wordNorm.includes(token)) return true;
-  if (wordNorm.length >= 4 && token.includes(wordNorm)) return true;
   // Pure-digit tokens must match exactly (e.g. PESEL, PLZ).
-  if (/^\d+$/.test(token)) return wordNorm === token;
-  return false;
+  if (/^\d+$/.test(token) || /^\d+$/.test(wordNorm)) return wordNorm === token;
+  if (token.length < 4 || wordNorm.length < 4) return false;
+  // Prefix-match in either direction, requiring 80% overlap of the shorter
+  // string. "Filak" vs "Filakk" matches; "Anna" vs "Annahme" does not.
+  const shorter = wordNorm.length <= token.length ? wordNorm : token;
+  const longer = wordNorm.length <= token.length ? token : wordNorm;
+  if (!longer.startsWith(shorter)) return false;
+  return shorter.length / longer.length >= 0.8;
 }
