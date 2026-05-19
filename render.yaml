@@ -14,8 +14,7 @@
 databases:
   - name: pk-referenzen-db
     plan: free  # 90-day trial; upgrade to "basic-256mb" ($7/mo) for prod
-    region: oregon  # DB and web service must share a region — internal
-                    # hostname only resolves within the same region.
+    region: frankfurt  # EU central — low latency to PL/DE users
     databaseName: pkreferenzen
     user: pkreferenzen
 
@@ -24,7 +23,7 @@ services:
     name: pk-referenzen
     runtime: node
     plan: starter  # $7/mo — needed for persistent disk + always-on
-    region: oregon  # must match the database region above
+    region: frankfurt  # must match the database region above
     branch: main
     buildCommand: npm ci && npm run build
     # Runs after build, before the new version goes live — DB is reachable
