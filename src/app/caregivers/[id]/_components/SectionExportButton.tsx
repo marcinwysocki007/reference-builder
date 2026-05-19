@@ -9,10 +9,12 @@ export function SectionExportButton({
   caregiverId,
   type,
   documentCount,
+  allReady,
 }: {
   caregiverId: string;
   type: DocumentType;
   documentCount: number;
+  allReady: boolean;
 }) {
   const router = useRouter();
   const t = useT();
@@ -47,14 +49,21 @@ export function SectionExportButton({
 
   if (documentCount === 0) return null;
 
+  const disabled = busy || !allReady;
+
   return (
     <div className="flex items-center gap-2 text-sm mt-2">
       <button
         onClick={run}
-        disabled={busy}
-        className="btn btn-primary"
+        disabled={disabled}
+        title={!allReady ? t("sectionPdf.waiting") : undefined}
+        className="btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        {busy ? t("sectionPdf.creating") : `${t("sectionPdf.create")} (${documentCount})`}
+        {busy
+          ? t("sectionPdf.creating")
+          : !allReady
+            ? t("sectionPdf.waiting")
+            : `${t("sectionPdf.create")} (${documentCount})`}
       </button>
       {downloadUrl && (
         <a

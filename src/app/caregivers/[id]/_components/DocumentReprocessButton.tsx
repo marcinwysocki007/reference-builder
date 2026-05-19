@@ -35,10 +35,30 @@ export function DocumentReprocessButton({
       onClick={onClick}
       disabled={busy}
       title={t("document.reprocess")}
-      className="text-xs px-1.5 py-0.5 rounded hover:bg-black/5 transition"
-      style={{ color: "var(--muted)" }}
+      className="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded border bg-white hover:bg-gray-50 transition disabled:opacity-50"
+      style={{ borderColor: "var(--border)", color: "var(--ink)" }}
     >
-      {busy ? "…" : "↻"}
+      <svg
+        width="14"
+        height="14"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M12 2v3" />
+        <path d="m5.6 5.6 2.1 2.1" />
+        <path d="M2 12h3" />
+        <path d="m5.6 18.4 2.1-2.1" />
+        <path d="M12 22v-3" />
+        <path d="m18.4 18.4-2.1-2.1" />
+        <path d="M22 12h-3" />
+        <path d="m18.4 5.6-2.1 2.1" />
+      </svg>
+      {busy ? "…" : t("document.reprocessLabel")}
     </button>
   );
 }

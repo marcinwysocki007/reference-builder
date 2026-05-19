@@ -205,6 +205,7 @@ function UploadSection({
             caregiverId={caregiverId}
             type={type}
             documentCount={docs.length}
+            allReady={docs.every((d) => d.status === "READY")}
           />
         </>
       )}
