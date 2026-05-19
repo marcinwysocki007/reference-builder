@@ -18,7 +18,8 @@ import { getServerLocale } from "@/lib/server-locale";
 
 export const dynamic = "force-dynamic";
 
-// EMPFEHLUNG is handled separately (see RecommendationLetterCard).
+// Upload-style sections (file drops). EMPFEHLUNG is rendered alongside but
+// uses the letter card (no upload) — handled inline in the grid below.
 const UPLOAD_SECTIONS: DocumentType[] = ["REFERENZ", "ZERTIFIKAT", "GRUSSKARTE"];
 
 export default async function CaregiverDetail({
@@ -60,23 +61,22 @@ export default async function CaregiverDetail({
         <DeleteCaregiverButton id={caregiver.id} />
       </div>
 
-      <RecommendationLetterCard
-        caregiverId={caregiver.id}
-        initialText={caregiver.recommendationLetterDe}
-        initialUpdatedAt={
-          caregiver.recommendationLetterUpdatedAt
-            ? caregiver.recommendationLetterUpdatedAt.toISOString()
-            : null
-        }
-        hasProfileData={
-          !!(caregiver.bio || caregiver.languages || caregiver.specialties) ||
-          caregiver.documents.some(
-            (d) => d.type === "REFERENZ" || d.type === "ZERTIFIKAT",
-          )
-        }
-      />
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <RecommendationLetterCard
+          caregiverId={caregiver.id}
+          initialText={caregiver.recommendationLetterDe}
+          initialUpdatedAt={
+            caregiver.recommendationLetterUpdatedAt
+              ? caregiver.recommendationLetterUpdatedAt.toISOString()
+              : null
+          }
+          hasProfileData={
+            !!(caregiver.bio || caregiver.languages || caregiver.specialties) ||
+            caregiver.documents.some(
+              (d) => d.type === "REFERENZ" || d.type === "ZERTIFIKAT",
+            )
+          }
+        />
         {UPLOAD_SECTIONS.map((type) => {
           const docs = docsByType.get(type) ?? [];
           const meta = sectionMeta(locale, type);
