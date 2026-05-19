@@ -532,8 +532,10 @@ async function appendOriginalPages(
       const sourceBuf =
         approvedBoxes.length > 0
           ? await pixelatePIIRegions(buf, approvedBoxes, {
-              padX: 0.04,
-              padY: 0.025,
+              // Tight padding — OCR-anchored boxes are accurate to the
+              // word, so only need a thin halo to absorb anti-aliasing.
+              padX: 0.008,
+              padY: 0.006,
             })
           : buf;
 

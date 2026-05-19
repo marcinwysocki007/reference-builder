@@ -23,13 +23,19 @@ export function locatePIIBoxesViaOCR(
   claudeBoxes: PIIBox[],
   ocrWords: OCRWord[],
 ): PIIBox[] {
-  if (ocrWords.length === 0) return claudeBoxes;
+  // Reject Claude boxes that are clearly oversized — Claude vision tends to
+  // sometimes return one giant box covering an entire paragraph or even half
+  // the page, which then pixelates the whole document. A genuine PII
+  // line/block in a letter is at most ~6% tall (4 lines of an address) and
+  // ~55% wide. Anything beyond that is a false positive we should drop.
+  const sized = claudeBoxes.filter(
+    (b) => b.height <= 0.08 && b.width <= 0.6,
+  );
+  if (ocrWords.length === 0) return sized;
   const normWords = ocrWords.map((w) => ({ ...w, n: norm(w.text) }));
 
   const out: PIIBox[] = [];
-  // Track which Claude findings produced ≥1 OCR-matched box, so the
-  // fallback "use Claude's box" only fires when OCR found nothing.
-  for (const claude of claudeBoxes) {
+  for (const claude of sized) {
     const tokens = tokensForLookup(claude);
     if (tokens.length === 0) {
       out.push(claude);
@@ -47,16 +53,11 @@ export function locatePIIBoxesViaOCR(
     }
 
     if (matches.size === 0) {
-      // OCR couldn't anchor this PII — keep Claude's own box (with a small
-      // pad), don't expand to a full-width strip. Previously we strip-masked
-      // entire lines which produced "almost everything blacked out" on
-      // documents where OCR was noisy. Better to occasionally miss a token
-      // than redact half the page.
-      out.push({
-        ...claude,
-        x: Math.max(0, claude.x - 0.005),
-        width: Math.min(1, claude.width + 0.01),
-      });
+      // OCR couldn't anchor this PII — skip rather than guess. A wrong
+      // pixelation is worse than a missed token: the user can manually
+      // redact the spot via the editor if needed. Previously we either
+      // strip-masked the entire line or trusted Claude's box, both of
+      // which destroyed documents on noisy scans.
       continue;
     }
 

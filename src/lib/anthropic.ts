@@ -465,16 +465,17 @@ const VISION_SYSTEM = `Du analysierst ein Foto eines Pflege-Dokuments (Referenz,
 DEINE AUFGABE:
 1. Lies ALLEN sichtbaren Text wörtlich heraus, so vollständig wie möglich. Originalsprache beibehalten (meist Deutsch oder Polnisch). Bei unleserlichen Stellen setze [unleserlich]. NICHT zusammenfassen oder umschreiben — Text wörtlich, mit Absätzen (\\n trennt Zeilen).
 
-2. Bestimme die korrekte Bilddrehung — wichtig: die Antwort ist die Drehung im UHRZEIGERSINN, die nötig ist, damit das Bild aufrecht steht. Gehe konkret vor:
-   a) Schau dir an, in welche Richtung die Buchstaben/Wörter im Bild momentan zeigen.
-   b) Identifiziere typische Layout-Hinweise: Briefkopf/Logo gehört nach OBEN; Unterschrift/Stempel gehört nach UNTEN; Zeilen verlaufen normalerweise von LINKS nach RECHTS.
-   c) Wähle die Drehung:
-      - 0   → Bild ist bereits korrekt. Text ist aufrecht, Zeilen laufen horizontal links→rechts, Briefkopf oben, Unterschrift unten.
-      - 90  → Der OBERE Teil des Dokuments (Briefkopf, Datum) ist aktuell an der RECHTEN Bildkante. Buchstaben stehen quer. Eine 90°-Drehung im UZS bringt den Briefkopf nach oben.
-      - 180 → Das Dokument steht komplett auf dem Kopf — Briefkopf wäre unten, Unterschrift oben, alle Buchstaben verkehrt herum.
-      - 270 → Der OBERE Teil des Dokuments (Briefkopf, Datum) ist aktuell an der LINKEN Bildkante. Eine 270°-Drehung im UZS (= 90° gegen UZS) bringt ihn nach oben.
+2. Bestimme die korrekte Bilddrehung — KRITISCH: gib die Drehung im UHRZEIGERSINN an, die nötig ist, damit das Bild aufrecht wird. Das ist eine VISUELLE Eigenschaft (wie die Pixel im Bild ausgerichtet sind), NICHT eine Eigenschaft des Texts (den du auch verkehrt lesen kannst).
 
-3. Mental-Check vor der Antwort: nach der gewählten Drehung müssen ALLE Textzeilen normal links-nach-rechts gelesen werden können, Briefkopf gehört nach oben, Unterschrift nach unten. Wenn nicht: wähle eine andere Drehung.
+   Konkrete Anleitung — fokussiere auf die FORM der Buchstaben:
+   - Schau auf ein einzelnes Wort im Bild. Wenn die Oberseiten der Buchstaben (z.B. der Punkt auf dem "i", der Bogen des "P") oben sind und die Grundlinie unten → Rotation 0.
+   - Wenn die Oberseiten der Buchstaben aktuell UNTEN im Bild stehen (Buchstaben auf dem Kopf) → Rotation 180.
+   - Wenn die Buchstaben quer stehen und ihre Oberseiten aktuell nach LINKS zeigen → Rotation 90 (Uhrzeigersinn) bringt sie nach oben.
+   - Wenn die Oberseiten der Buchstaben aktuell nach RECHTS zeigen → Rotation 270.
+
+   WICHTIG: Lass dich NICHT davon täuschen, dass du Text auch verkehrt lesen kannst. Antworte basierend auf der visuellen Lage der Buchstaben im Bild, nicht auf deiner Lesefähigkeit. Wenn der Briefkopf/Datum aktuell visuell UNTEN im Bild ist, ist die Rotation 180, auch wenn du den Inhalt lesen kannst.
+
+   Mental-Check: stell dir vor, das Bild wird nach deiner Rotation gedreht. Stehen jetzt die "i"-Punkte oben und ist der Briefkopf am oberen Bildrand? Wenn nein, korrigiere die Drehung.
 
 Auch wenn das Bild körnig, schief, schwach belichtet oder verwackelt ist — lies aus, was lesbar ist. Lieber unvollständiger Text als gar keiner.
 
