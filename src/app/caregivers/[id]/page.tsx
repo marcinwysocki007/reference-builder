@@ -18,9 +18,9 @@ import { getServerLocale } from "@/lib/server-locale";
 
 export const dynamic = "force-dynamic";
 
-// Upload-style sections (file drops). EMPFEHLUNG is rendered alongside but
-// uses the letter card (no upload) — handled inline in the grid below.
-const UPLOAD_SECTIONS: DocumentType[] = ["REFERENZ", "ZERTIFIKAT", "GRUSSKARTE"];
+// Grid layout: top row REFERENZ + ZERTIFIKAT, bottom row EMPFEHLUNG + GRUSSKARTE.
+// EMPFEHLUNG is the generated letter card; the others are upload drop zones.
+const TOP_ROW: DocumentType[] = ["REFERENZ", "ZERTIFIKAT"];
 
 export default async function CaregiverDetail({
   params,
@@ -62,53 +62,15 @@ export default async function CaregiverDetail({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {UPLOAD_SECTIONS.map((type) => {
-          const docs = docsByType.get(type) ?? [];
-          const meta = sectionMeta(locale, type);
-          return (
-            <div key={type} className="space-y-2">
-              <DropZone
-                caregiverId={caregiver.id}
-                type={type}
-                label={meta.label}
-                hint={meta.hint}
-                icon={meta.icon}
-              />
-              {docs.length > 0 && (
-                <>
-                  <ul
-                    className="text-sm rounded-lg overflow-hidden divide-y"
-                    style={{ background: "white", borderColor: "var(--border)", border: "1px solid var(--border)" }}
-                  >
-                    {docs.map((d) => (
-                      <li
-                        key={d.id}
-                        className="px-3 py-2 flex items-center gap-2"
-                      >
-                        <Link
-                          href={`/caregivers/${caregiver.id}/documents/${d.id}`}
-                          className="flex-1 truncate hover:underline"
-                          title={d.title}
-                        >
-                          {d.title}
-                        </Link>
-                        <StatusBadge status={d.status} />
-                        <DocumentRotateButton documentId={d.id} mime={d.originalMime} />
-                        <DocumentReprocessButton documentId={d.id} />
-                        <DocumentDeleteButton documentId={d.id} title={d.title} />
-                      </li>
-                    ))}
-                  </ul>
-                  <SectionExportButton
-                    caregiverId={caregiver.id}
-                    type={type}
-                    documentCount={docs.length}
-                  />
-                </>
-              )}
-            </div>
-          );
-        })}
+        {TOP_ROW.map((type) => (
+          <UploadSection
+            key={type}
+            type={type}
+            docs={docsByType.get(type) ?? []}
+            caregiverId={caregiver.id}
+            locale={locale}
+          />
+        ))}
         <RecommendationLetterCard
           caregiverId={caregiver.id}
           initialText={caregiver.recommendationLetterDe}
@@ -123,6 +85,12 @@ export default async function CaregiverDetail({
               (d) => d.type === "REFERENZ" || d.type === "ZERTIFIKAT",
             )
           }
+        />
+        <UploadSection
+          type="GRUSSKARTE"
+          docs={docsByType.get("GRUSSKARTE") ?? []}
+          caregiverId={caregiver.id}
+          locale={locale}
         />
       </div>
 
@@ -181,6 +149,64 @@ export default async function CaregiverDetail({
               })}
           </ul>
         </div>
+      )}
+    </div>
+  );
+}
+
+function UploadSection({
+  type,
+  docs,
+  caregiverId,
+  locale,
+}: {
+  type: DocumentType;
+  docs: { id: string; title: string; status: string; originalMime: string }[];
+  caregiverId: string;
+  locale: "de" | "pl";
+}) {
+  const meta = sectionMeta(locale, type);
+  return (
+    <div className="space-y-2">
+      <DropZone
+        caregiverId={caregiverId}
+        type={type}
+        label={meta.label}
+        hint={meta.hint}
+        icon={meta.icon}
+      />
+      {docs.length > 0 && (
+        <>
+          <ul
+            className="text-sm rounded-lg overflow-hidden divide-y"
+            style={{
+              background: "white",
+              borderColor: "var(--border)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            {docs.map((d) => (
+              <li key={d.id} className="px-3 py-2 flex items-center gap-2">
+                <Link
+                  href={`/caregivers/${caregiverId}/documents/${d.id}`}
+                  className="flex-1 truncate hover:underline"
+                  title={d.title}
+                >
+                  {d.title}
+                </Link>
+                <StatusBadge status={d.status} />
+                <DocumentRotateButton documentId={d.id} mime={d.originalMime} />
+                <DocumentReprocessButton documentId={d.id} />
+                <DocumentDeleteButton documentId={d.id} title={d.title} />
+              </li>
+            ))}
+          </ul>
+          <SectionExportButton
+            caregiverId={caregiverId}
+            type={type}
+            documentCount={docs.length}
+          />
+        </>
       )}
     </div>
   );
