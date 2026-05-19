@@ -62,21 +62,6 @@ export default async function CaregiverDetail({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <RecommendationLetterCard
-          caregiverId={caregiver.id}
-          initialText={caregiver.recommendationLetterDe}
-          initialUpdatedAt={
-            caregiver.recommendationLetterUpdatedAt
-              ? caregiver.recommendationLetterUpdatedAt.toISOString()
-              : null
-          }
-          hasProfileData={
-            !!(caregiver.bio || caregiver.languages || caregiver.specialties) ||
-            caregiver.documents.some(
-              (d) => d.type === "REFERENZ" || d.type === "ZERTIFIKAT",
-            )
-          }
-        />
         {UPLOAD_SECTIONS.map((type) => {
           const docs = docsByType.get(type) ?? [];
           const meta = sectionMeta(locale, type);
@@ -124,6 +109,21 @@ export default async function CaregiverDetail({
             </div>
           );
         })}
+        <RecommendationLetterCard
+          caregiverId={caregiver.id}
+          initialText={caregiver.recommendationLetterDe}
+          initialUpdatedAt={
+            caregiver.recommendationLetterUpdatedAt
+              ? caregiver.recommendationLetterUpdatedAt.toISOString()
+              : null
+          }
+          hasProfileData={
+            !!(caregiver.bio || caregiver.languages || caregiver.specialties) ||
+            caregiver.documents.some(
+              (d) => d.type === "REFERENZ" || d.type === "ZERTIFIKAT",
+            )
+          }
+        />
       </div>
 
       {caregiver.exports.filter((e) => e.outputPath).length > 0 && (
