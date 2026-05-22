@@ -16,7 +16,11 @@ import { readFile, writeFile } from "@/lib/storage";
 import { recognizeWordBoxes } from "@/lib/ocr";
 import { locatePIIBoxesViaOCR } from "@/lib/pii-locate";
 import { extractLargestImageFromPDF } from "@/lib/pdf-extract-image";
-import { enhanceDocument, autoCropToDocument } from "@/lib/image";
+import {
+  enhanceDocument,
+  autoCropToDocument,
+  softVignetteBackground,
+} from "@/lib/image";
 
 interface RouteCtx { params: Promise<{ id: string }> }
 
@@ -67,8 +71,10 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
             const cropped = await autoCropToDocument(extracted, bounds);
             // 2. Enhance contrast / sharpen for legibility.
             const enhanced = await enhanceDocument(cropped);
+            // 3. Soft cream vignette to fade any remaining background.
+            const finished = await softVignetteBackground(enhanced);
             const newPath = doc.originalPath.replace(/\.pdf$/i, ".jpg");
-            await writeFile(newPath, enhanced);
+            await writeFile(newPath, finished);
             await prisma.document.update({
               where: { id },
               data: {
@@ -85,9 +91,9 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
       }
     }
 
-    // Direct image uploads: also auto-crop on (re)processing. Saves over the
-    // original — re-running is idempotent because Claude won't see margins to
-    // trim on an already-cropped image.
+    // Direct image uploads (and reprocessed PDFs already converted to JPEG):
+    // try crop, then always apply the cream vignette so any leftover desk /
+    // binder / paper edges fade away. Idempotent on reprocess.
     if (doc.originalMime.startsWith("image/") && (force || !ocrText)) {
       try {
         const buf = await readFile(doc.originalPath);
@@ -102,14 +108,11 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
           imageBuffer: buf,
           mediaType,
         }).catch(() => null);
-        if (bounds) {
-          const cropped = await autoCropToDocument(buf, bounds);
-          if (cropped !== buf && cropped.length !== buf.length) {
-            await writeFile(doc.originalPath, cropped);
-          }
-        }
+        const cropped = await autoCropToDocument(buf, bounds);
+        const finished = await softVignetteBackground(cropped);
+        await writeFile(doc.originalPath, finished);
       } catch (err) {
-        console.error("[process] auto-crop failed:", err);
+        console.error("[process] background polish failed:", err);
       }
     }
 

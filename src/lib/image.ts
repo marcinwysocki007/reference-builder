@@ -37,6 +37,39 @@ export async function autoCropToDocument(
     .toBuffer();
 }
 
+// Soft radial vignette that fades the image edges to a warm cream tone —
+// hides cluttered desk / binder / sleeve backgrounds without risking lost
+// document content from an aggressive crop. Works on every image.
+export async function softVignetteBackground(input: Buffer): Promise<Buffer> {
+  const meta = await sharp(input).metadata();
+  const W = meta.width ?? 0;
+  const H = meta.height ?? 0;
+  if (!W || !H) return input;
+  // Warm off-white that reads as "fine paper", compatible with the Vitanas
+  // coral on the cover page. Pure white would feel clinical.
+  const cream = "#faf6ef";
+  // Vignette starts transparent at center, becomes 70% opaque by 80% of
+  // radius, fully opaque at the corners — so corners disappear, mid-edges
+  // fade softly, document body stays untouched.
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}">
+    <defs>
+      <radialGradient id="v" cx="50%" cy="50%" r="72%" fx="50%" fy="50%">
+        <stop offset="0%" stop-color="${cream}" stop-opacity="0"/>
+        <stop offset="55%" stop-color="${cream}" stop-opacity="0"/>
+        <stop offset="78%" stop-color="${cream}" stop-opacity="0.55"/>
+        <stop offset="92%" stop-color="${cream}" stop-opacity="0.92"/>
+        <stop offset="100%" stop-color="${cream}" stop-opacity="1"/>
+      </radialGradient>
+    </defs>
+    <rect width="${W}" height="${H}" fill="url(#v)"/>
+  </svg>`;
+  const overlay = await sharp(Buffer.from(svg)).png().toBuffer();
+  return sharp(input)
+    .composite([{ input: overlay, blend: "over" }])
+    .jpeg({ quality: 92, mozjpeg: true, chromaSubsampling: "4:4:4" })
+    .toBuffer();
+}
+
 // Aggressive enhancement for photographed paper documents — boosts local
 // contrast (CLAHE), stretches global contrast, neutralizes warm color casts
 // from indoor light, and sharpens text edges. Yields clearly readable scans
