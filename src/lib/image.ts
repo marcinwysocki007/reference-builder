@@ -11,6 +11,32 @@ export async function enhancePortrait(input: Buffer): Promise<Buffer> {
     .toBuffer();
 }
 
+// Crop a phone photo to just the document page using a vision-detected
+// bounding rect. Falls through to the original buffer if detection fails or
+// the bounds are too small/invalid to be trusted.
+export async function autoCropToDocument(
+  input: Buffer,
+  bounds: { x: number; y: number; width: number; height: number } | null,
+): Promise<Buffer> {
+  if (!bounds) return input;
+  const meta = await sharp(input).metadata();
+  const W = meta.width ?? 0;
+  const H = meta.height ?? 0;
+  if (!W || !H) return input;
+  // Small outward pad (0.5%) so we don't shave content at the edges.
+  const padX = 0.005;
+  const padY = 0.005;
+  const left = Math.max(0, Math.floor((bounds.x - padX) * W));
+  const top = Math.max(0, Math.floor((bounds.y - padY) * H));
+  const width = Math.min(W - left, Math.ceil((bounds.width + 2 * padX) * W));
+  const height = Math.min(H - top, Math.ceil((bounds.height + 2 * padY) * H));
+  if (width < 100 || height < 100) return input;
+  return sharp(input)
+    .extract({ left, top, width, height })
+    .jpeg({ quality: 92, mozjpeg: true, chromaSubsampling: "4:4:4" })
+    .toBuffer();
+}
+
 // Aggressive enhancement for photographed paper documents — boosts local
 // contrast (CLAHE), stretches global contrast, neutralizes warm color casts
 // from indoor light, and sharpens text edges. Yields clearly readable scans

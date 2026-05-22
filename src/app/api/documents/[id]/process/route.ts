@@ -9,13 +9,14 @@ import {
   extractMetadata,
   visionExtractAndOrient,
   visionDetectPIIBoxes,
+  visionDetectDocumentBounds,
   type SupportedImageMime,
 } from "@/lib/anthropic";
 import { readFile, writeFile } from "@/lib/storage";
 import { recognizeWordBoxes } from "@/lib/ocr";
 import { locatePIIBoxesViaOCR } from "@/lib/pii-locate";
 import { extractLargestImageFromPDF } from "@/lib/pdf-extract-image";
-import { enhanceDocument } from "@/lib/image";
+import { enhanceDocument, autoCropToDocument } from "@/lib/image";
 
 interface RouteCtx { params: Promise<{ id: string }> }
 
@@ -43,10 +44,10 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
     let ocrText = doc.ocrText ?? "";
 
     // Image-PDFs (phone photo wrapped in a PDF, no text layer) need the same
-    // rotate + enhance + vision pipeline as plain image uploads — otherwise
-    // they end up in the export sideways and faint. Convert to JPEG once,
-    // update the doc record, and the rest of the pipeline treats it as an
-    // image from here on.
+    // crop + rotate + enhance + vision pipeline as plain image uploads —
+    // otherwise they end up in the export sideways and faint. Convert to
+    // JPEG once, update the doc record, and the rest of the pipeline treats
+    // it as an image from here on.
     if (doc.originalMime === "application/pdf" && (force || !ocrText)) {
       try {
         const buf = await readFile(doc.originalPath);
@@ -58,7 +59,14 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         if (trimmedLen < 80) {
           const extracted = await extractLargestImageFromPDF(buf);
           if (extracted) {
-            const enhanced = await enhanceDocument(extracted);
+            // 1. Crop to document edges (excludes desk, binder, sleeve, etc.)
+            const bounds = await visionDetectDocumentBounds({
+              imageBuffer: extracted,
+              mediaType: "image/jpeg",
+            }).catch(() => null);
+            const cropped = await autoCropToDocument(extracted, bounds);
+            // 2. Enhance contrast / sharpen for legibility.
+            const enhanced = await enhanceDocument(cropped);
             const newPath = doc.originalPath.replace(/\.pdf$/i, ".jpg");
             await writeFile(newPath, enhanced);
             await prisma.document.update({
@@ -74,6 +82,34 @@ export async function POST(req: NextRequest, { params }: RouteCtx) {
         }
       } catch (err) {
         console.error("[process] image-pdf conversion failed:", err);
+      }
+    }
+
+    // Direct image uploads: also auto-crop on (re)processing. Saves over the
+    // original — re-running is idempotent because Claude won't see margins to
+    // trim on an already-cropped image.
+    if (doc.originalMime.startsWith("image/") && (force || !ocrText)) {
+      try {
+        const buf = await readFile(doc.originalPath);
+        const mediaType = (
+          ["image/jpeg", "image/png", "image/gif", "image/webp"].includes(
+            doc.originalMime,
+          )
+            ? doc.originalMime
+            : "image/jpeg"
+        ) as SupportedImageMime;
+        const bounds = await visionDetectDocumentBounds({
+          imageBuffer: buf,
+          mediaType,
+        }).catch(() => null);
+        if (bounds) {
+          const cropped = await autoCropToDocument(buf, bounds);
+          if (cropped !== buf && cropped.length !== buf.length) {
+            await writeFile(doc.originalPath, cropped);
+          }
+        }
+      } catch (err) {
+        console.error("[process] auto-crop failed:", err);
       }
     }
 

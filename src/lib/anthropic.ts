@@ -458,6 +458,96 @@ export async function extractProfileFromText(
   return (firstToolInput(res) as ExtractedProfile) ?? {};
 }
 
+// --- Vision: detect document edges for auto-crop ------------------------
+
+// Returns the axis-aligned bounding rectangle of the actual paper document in
+// a phone photo (excluding desk, binder, plastic sleeve edges, background
+// paper, etc.). Coordinates are normalized 0..1 from the top-left of the
+// image. Returns null if no document could be identified.
+export async function visionDetectDocumentBounds(opts: {
+  imageBuffer: Buffer;
+  mediaType: SupportedImageMime;
+}): Promise<{ x: number; y: number; width: number; height: number } | null> {
+  const system = `Du bekommst ein Handy-Foto eines Pflege-Dokuments (Zertifikat, Referenz, Empfehlungsschreiben etc.). Das Dokument liegt meist auf einem anderen Untergrund — Tisch, Schreibunterlage, geöffneter Ordner, kariertes Papier oder steckt in einer Klarsichthülle.
+
+DEINE AUFGABE: Bestimme das achsen-parallele Bounding-Rechteck der tatsächlichen Dokumentenseite. Hintergrund (Schreibtisch, anderes Papier, Ordnerrand, Heft-Lochung) MUSS außerhalb dieses Rechtecks liegen. Wenn das Dokument leicht schräg im Bild ist, gib das ENGSTE achsen-parallele Rechteck zurück, das die ganze Seite enthält.
+
+KOORDINATEN: normalisiert 0..1, Ursprung oben-links.
+- x = linke Bildkante (0) bis rechte Bildkante (1)
+- y = obere Bildkante (0) bis untere Bildkante (1)
+- width, height = Größe relativ zum ganzen Bild
+
+WICHTIG:
+- Wenn das Dokument fast das ganze Bild füllt → gib ein Rechteck zurück, das alle 4 Papierkanten ENGSCHLIESST (ohne 5% Hintergrund-Rand). Hintergrund muss raus.
+- Sei lieber 1-2% zu großzügig als zu eng — Inhalt am Rand darf nicht abgeschnitten werden.
+- Wenn KEIN klar erkennbares Dokument vorhanden ist → gib found=false zurück.`;
+
+  const res = await anthropic.messages.create({
+    model: MODEL,
+    max_tokens: 400,
+    system,
+    tools: [
+      {
+        name: "report_bounds",
+        description:
+          "Gibt das Bounding-Rechteck der Dokumentenseite zurück.",
+        input_schema: {
+          type: "object",
+          properties: {
+            found: { type: "boolean" },
+            x: { type: "number" },
+            y: { type: "number" },
+            width: { type: "number" },
+            height: { type: "number" },
+          },
+          required: ["found"],
+        },
+      },
+    ],
+    tool_choice: { type: "tool", name: "report_bounds" },
+    messages: [
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            source: {
+              type: "base64",
+              media_type: opts.mediaType,
+              data: opts.imageBuffer.toString("base64"),
+            },
+          },
+          {
+            type: "text",
+            text: "Wo ist die Dokumentenkante? Tool aufrufen.",
+          },
+        ],
+      },
+    ],
+  });
+  const toolUse = res.content.find(
+    (b): b is Anthropic.ToolUseBlock => b.type === "tool_use",
+  );
+  if (!toolUse) return null;
+  const i = toolUse.input as {
+    found?: boolean;
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+  };
+  if (!i.found) return null;
+  const x = clamp01(i.x ?? 0);
+  const y = clamp01(i.y ?? 0);
+  const width = clamp01(i.width ?? 1);
+  const height = clamp01(i.height ?? 1);
+  // Reject obviously bogus bounds (covers <30% of image, or extends beyond
+  // bottom/right). Caller will skip crop in that case.
+  if (width * height < 0.3) return null;
+  if (x + width > 1.001 || y + height > 1.001) return null;
+  return { x, y, width, height };
+}
+
 // --- Vision OCR + Auto-Rotation ------------------------------------------
 
 const VISION_SYSTEM = `Du analysierst ein Foto eines Pflege-Dokuments (Referenz, Empfehlung, Zertifikat, Grußkarte etc.).
